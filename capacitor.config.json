@@ -1,0 +1,9 @@
+{
+  "appId": "io.asistente.app",
+  "appName": "TecHelp",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
