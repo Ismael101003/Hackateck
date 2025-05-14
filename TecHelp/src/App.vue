@@ -2,60 +2,66 @@
   <div class="app-container">
     <header class="app-header">
       <div class="logo">
-        <h1>EduAssist</h1>
+        <a>
+          <img 
+            src="https://i.ibb.co/8g5z09B6/04fe10b4-cf1c-4f85-8a23-ca59bc3c5957.jpg" 
+            alt="Logo TECHELP" 
+            width="50" 
+            height="50"
+          />
+        </a>
+        <h1>TECHELP</h1>
       </div>
-      <button @click="toggleMenu" class="menu-button">
-        <span v-if="menuOpen" class="icon">✕</span>
-        <span v-else class="icon">☰</span>
+      <button @click="toggleMenu" class="menu-button" aria-label="Toggle menu">
+        <span class="icon">{{ menuOpen ? '✕' : '☰' }}</span>
       </button>
     </header>
 
-    <nav :class="['app-nav', { 'open': menuOpen }]">
-      <div class="user-profile">
-        <div class="avatar">
-          <img src="https://via.placeholder.com/50" alt="Perfil" />
+    <div class="app-layout">
+      <nav :class="['app-nav', { 'open': menuOpen }]">
+        <div class="user-profile">
+          <div class="avatar">
+            <img :src="userAvatar" alt="Foto de perfil" width="50" height="50" />
+          </div>
+          <div class="user-info">
+            <h3>{{ userData.nombre }}</h3>
+            <p>{{ userData.carrera }}</p>
+          </div>
         </div>
-        <div class="user-info">
-          <h3>{{ userData.nombre }}</h3>
-          <p>{{ userData.carrera }}</p>
-        </div>
-      </div>
-      <ul class="nav-links">
-        <li @click="navigateTo('dashboard')">
-          <span class="icon">📊</span> Dashboard
-        </li>
-        <li @click="navigateTo('chatbot')">
-          <span class="icon">💬</span> Asistente IA
-        </li>
-        <li @click="navigateTo('schedule')">
-          <span class="icon">📅</span> Horario
-        </li>
-        <li @click="navigateTo('performance')">
-          <span class="icon">📈</span> Rendimiento
-        </li>
-        <li @click="navigateTo('profile')">
-          <span class="icon">👤</span> Perfil
-        </li>
-      </ul>
-    </nav>
+        <ul class="nav-links">
+          <li 
+            v-for="(item, key) in navItems" 
+            :key="key"
+            @click="navigateTo(key)"
+            :class="{ active: currentViewKey === key }"
+          >
+            <span class="icon">{{ item.icon }}</span> {{ item.label }}
+          </li>
+        </ul>
+      </nav>
 
-    <main class="app-content">
-      <component :is="currentView" :user-data="userData" @update-user="updateUserData" />
-    </main>
+      <main class="app-content" @click="menuOpen && isMobile && toggleMenu()">
+        <Transition name="fade" mode="out-in">
+          <component 
+            :is="currentView" 
+            :user-data="userData" 
+            @update-user="updateUserData" 
+          />
+        </Transition>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup>
-
-import { ref, shallowRef, onMounted } from 'vue';
+import { ref, shallowRef, computed, onMounted, onBeforeUnmount } from 'vue';
 import Dashboard from './components/Dashboard.vue';
 import Chatbot from './components/Chatbot.vue';
 import Schedule from './components/Schedule.vue';
 import Performance from './components/Performance.vue';
 import Profile from './components/Profile.vue';
-import NotificationContainer from './components/NotificationContainer.vue';
 
-
+// Componentes disponibles
 const components = {
   dashboard: Dashboard,
   chatbot: Chatbot,
@@ -64,8 +70,22 @@ const components = {
   profile: Profile
 };
 
+// Items de navegación
+const navItems = {
+  dashboard: { icon: '📊', label: 'Dashboard' },
+  chatbot: { icon: '💬', label: 'Asistente IA' },
+  schedule: { icon: '📅', label: 'Horario' },
+  performance: { icon: '📈', label: 'Rendimiento' },
+  profile: { icon: '👤', label: 'Perfil' }
+};
+
+// Estado reactivo
 const menuOpen = ref(false);
-const currentView = shallowRef(components.dashboard);
+const currentViewKey = ref('dashboard');
+const isMobile = ref(window.innerWidth <= 768);
+const userAvatar = ref('https://via.placeholder.com/50');
+
+// Datos del usuario
 const userData = ref({
   id: '12345',
   nombre: 'Israel Ortiz Ramirez',
@@ -102,13 +122,18 @@ const userData = ref({
   ]
 });
 
+// Componente actual computado
+const currentView = computed(() => components[currentViewKey.value]);
+
 // Función para cambiar entre vistas
 const navigateTo = (view) => {
-  currentView.value = components[view];
-  menuOpen.value = false;
+  currentViewKey.value = view;
+  if (isMobile.value) {
+    menuOpen.value = false;
+  }
 };
 
-// Función para abrir/cerrar el menú en dispositivos móviles
+// Función para abrir/cerrar el menú
 const toggleMenu = () => {
   menuOpen.value = !menuOpen.value;
 };
@@ -118,9 +143,22 @@ const updateUserData = (newData) => {
   userData.value = { ...userData.value, ...newData };
 };
 
+// Función para manejar cambios de tamaño de ventana
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= 768;
+  if (!isMobile.value && menuOpen.value) {
+    menuOpen.value = false;
+  }
+};
+
+// Ciclo de vida
 onMounted(() => {
-  // Aquí podríamos cargar datos del usuario desde una API o almacenamiento local
   console.log('Aplicación inicializada');
+  window.addEventListener('resize', handleResize);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 
@@ -137,6 +175,7 @@ onMounted(() => {
   flex-direction: column;
   height: 100vh;
   background-color: #f5f7fa;
+  overflow: hidden;
 }
 
 .app-header {
@@ -147,11 +186,24 @@ onMounted(() => {
   background-color: #4f46e5;
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo img {
+  border-radius: 8px;
+  object-fit: cover;
 }
 
 .logo h1 {
   font-size: 1.5rem;
   font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .menu-button {
@@ -161,25 +213,37 @@ onMounted(() => {
   color: white;
   font-size: 1.5rem;
   cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.menu-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.app-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
 .app-nav {
   width: 250px;
   background-color: white;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-  position: fixed;
-  top: 0;
-  left: 0;
   height: 100%;
-  padding-top: 70px;
+  overflow-y: auto;
   transition: transform 0.3s ease;
+  z-index: 5;
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  padding: 1rem;
+  padding: 1.25rem 1rem;
   border-bottom: 1px solid #eaeaea;
+  background-color: #f9fafb;
 }
 
 .avatar img {
@@ -187,25 +251,33 @@ onMounted(() => {
   height: 50px;
   border-radius: 50%;
   object-fit: cover;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .user-info {
   margin-left: 0.75rem;
+  overflow: hidden;
 }
 
 .user-info h3 {
   font-size: 1rem;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-info p {
   font-size: 0.8rem;
   color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-links {
   list-style: none;
-  padding: 1rem 0;
+  padding: 0.5rem 0;
 }
 
 .nav-links li {
@@ -213,7 +285,8 @@ onMounted(() => {
   cursor: pointer;
   display: flex;
   align-items: center;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
 }
 
 .nav-links li:hover {
@@ -221,15 +294,35 @@ onMounted(() => {
   color: #4f46e5;
 }
 
+.nav-links li.active {
+  background-color: #f0f2ff;
+  color: #4f46e5;
+  border-left-color: #4f46e5;
+}
+
 .nav-links .icon {
   margin-right: 0.75rem;
+  font-size: 1.1rem;
+  width: 24px;
+  text-align: center;
 }
 
 .app-content {
-  margin-left: 250px;
-  padding: 1.5rem;
   flex: 1;
+  padding: 1.5rem;
   overflow-y: auto;
+  background-color: #f5f7fa;
+}
+
+/* Transiciones */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 /* Estilos responsivos */
@@ -239,8 +332,12 @@ onMounted(() => {
   }
 
   .app-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    padding-top: 60px;
     transform: translateX(-100%);
-    z-index: 100;
   }
 
   .app-nav.open {
